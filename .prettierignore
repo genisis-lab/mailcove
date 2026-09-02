@@ -1,0 +1,8 @@
+node_modules
+dist
+.wrangler
+drizzle/meta
+worker-configuration.d.ts
+package-lock.json
+playwright-report
+test-results

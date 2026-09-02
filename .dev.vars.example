@@ -1,0 +1,37 @@
+# Copy to .dev.vars for local development. Never commit .dev.vars.
+
+# Required
+AUTH_SECRET=change-me-to-a-long-random-string
+# 32 random bytes, base64. Generate: openssl rand -base64 32
+ENCRYPTION_KEY=
+
+# Cloudflare provider (domain onboarding through the admin panel)
+CF_API_TOKEN=
+CF_ACCOUNT_ID=
+
+# Resend provider
+RESEND_API_KEY=
+RESEND_WEBHOOK_SECRET=
+
+# Postmark provider
+POSTMARK_SERVER_TOKEN=
+POSTMARK_ACCOUNT_TOKEN=
+POSTMARK_WEBHOOK_SECRET=
+
+# SendGrid provider
+SENDGRID_API_KEY=
+SENDGRID_WEBHOOK_PUBLIC_KEY=
+
+# Mailgun provider
+MAILGUN_API_KEY=
+MAILGUN_WEBHOOK_SIGNING_KEY=
+MAILGUN_REGION=us
+
+# Web Push (optional). Generate: npx web-push generate-vapid-keys
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:admin@example.com
+
+# Cloudflare Turnstile (optional bot protection on login)
+TURNSTILE_SITE_KEY=
+TURNSTILE_SECRET_KEY=
