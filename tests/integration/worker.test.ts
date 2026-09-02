@@ -62,4 +62,25 @@ describe('Worker HTTP surface', () => {
     expect(body.name).toBe('Mailcove API');
     expect(body.version).toBe(1);
   });
+
+  it('creates an admin and signs in with a password in the Worker runtime', async () => {
+    const base = 'http://localhost:5173';
+    const credentials = { email: 'admin@example.test', password: 'staging-integration-password' };
+    const signup = await worker.fetch(new Request(`${base}/api/setup/admin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: base },
+      body: JSON.stringify({ ...credentials, name: 'Test Admin' }),
+    }));
+    expect(signup.status, await signup.text()).toBe(200);
+    const signin = await worker.fetch(new Request(`${base}/api/auth/sign-in/email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: base },
+      body: JSON.stringify(credentials),
+    }));
+    expect(signin.status, await signin.clone().text()).toBe(200);
+    expect(signin.headers.get('set-cookie')).toBeTruthy();
+    const body = await signin.json() as { user: { email: string; role: string } };
+    expect(body.user.email).toBe(credentials.email);
+    expect(body.user.role).toBe('admin');
+  });
 });

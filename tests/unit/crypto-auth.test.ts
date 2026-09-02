@@ -1,9 +1,29 @@
-import { describe, expect, it } from 'vitest';
+import { pbkdf2Sync } from 'node:crypto';
+import { describe, expect, it, vi } from 'vitest';
 import { hashPassword, verifyPassword } from '../../src/worker/auth/password';
 import { decryptJson, encryptJson, timingSafeEqual } from '../../src/worker/lib/crypto';
 import { verifySvixSignature } from '../../src/worker/mail/providers/resend/webhook-signature';
 
 describe('password hashing', () => {
+  it('verifies existing hashes when hosted Workers rejects native PBKDF2 iterations', async () => {
+    const password = 'existing-staging-password';
+    const salt = Buffer.from('00112233445566778899aabbccddeeff', 'hex');
+    const expected = pbkdf2Sync(password, salt, 200_000, 32, 'sha256');
+    const hash = `pbkdf2$200000$${salt.toString('base64url')}$${expected.toString('base64url')}`;
+    const native = vi.spyOn(crypto.subtle, 'deriveBits').mockRejectedValue(
+      new DOMException('Pbkdf2 failed: iteration counts above 100000 are not supported', 'NotSupportedError'),
+    );
+    try {
+      expect(await verifyPassword({ hash, password })).toBe(true);
+      expect(await verifyPassword({ hash, password: 'wrong-password' })).toBe(false);
+      const generated = await hashPassword(password);
+      expect(generated.startsWith('pbkdf2$200000$')).toBe(true);
+      expect(await verifyPassword({ hash: generated, password })).toBe(true);
+    } finally {
+      native.mockRestore();
+    }
+  });
+
   it('round-trips and rejects a wrong password', async () => {
     const hash = await hashPassword('correct-horse-battery');
     expect(hash.startsWith('pbkdf2$200000$')).toBe(true);

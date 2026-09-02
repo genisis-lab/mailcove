@@ -111,5 +111,48 @@
   "observability": {
     "enabled": true,
     "logs": { "enabled": true, "head_sampling_rate": 1 }
+  },
+
+  "env": {
+    "staging": {
+      "name": "mailcove-staging",
+      "workers_dev": true,
+      "vars": {
+        "APP_NAME": "Mailcove Staging",
+        "APP_BASE_URL": "https://mailcove-staging.neil27.workers.dev",
+        "EMAIL_WORKER_NAME": "mailcove-staging",
+        "DEFAULT_MAIL_PROVIDER": "cloudflare",
+        "UNDO_SEND_SECONDS": "10"
+      },
+      "send_email": [{ "name": "EMAIL" }],
+      "d1_databases": [{
+        "binding": "DB",
+        "database_name": "mailcove-staging",
+        "database_id": "ce29e912-9238-4d26-acde-5b979e08180a",
+        "migrations_dir": "drizzle"
+      }],
+      "r2_buckets": [{ "binding": "STORAGE", "bucket_name": "mailcove-staging-storage" }],
+      "durable_objects": {
+        "bindings": [{ "name": "MAIL_HUB", "class_name": "MailHub" }]
+      },
+      "queues": {
+        "producers": [
+          { "binding": "INBOUND_QUEUE", "queue": "mailcove-staging-inbound" },
+          { "binding": "OUTBOUND_QUEUE", "queue": "mailcove-staging-outbound" },
+          { "binding": "DEAD_LETTER_QUEUE", "queue": "mailcove-staging-dlq" }
+        ],
+        "consumers": [
+          { "queue": "mailcove-staging-inbound", "max_batch_size": 5, "max_batch_timeout": 2, "max_retries": 5, "dead_letter_queue": "mailcove-staging-dlq" },
+          { "queue": "mailcove-staging-outbound", "max_batch_size": 5, "max_batch_timeout": 2, "max_retries": 3, "dead_letter_queue": "mailcove-staging-dlq" },
+          { "queue": "mailcove-staging-dlq", "max_batch_size": 10, "max_batch_timeout": 30 }
+        ]
+      },
+      "ratelimits": [
+        { "name": "AUTH_RATE_LIMITER", "namespace_id": "2101", "simple": { "limit": 20, "period": 60 } },
+        { "name": "SEND_RATE_LIMITER", "namespace_id": "2102", "simple": { "limit": 60, "period": 60 } },
+        { "name": "SEARCH_RATE_LIMITER", "namespace_id": "2103", "simple": { "limit": 120, "period": 60 } },
+        { "name": "WEBHOOK_RATE_LIMITER", "namespace_id": "2104", "simple": { "limit": 600, "period": 60 } }
+      ]
+    }
   }
 }

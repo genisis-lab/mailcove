@@ -1,11 +1,13 @@
+import { pbkdf2Async } from '@noble/hashes/pbkdf2.js';
+import { sha256 } from '@noble/hashes/sha2.js';
 import { base64Decode, base64UrlEncode, timingSafeEqual } from '../lib/crypto';
 
 const ITERATIONS = 200_000;
 const KEY_BYTES = 32;
 
 /**
- * PBKDF2-SHA256 via WebCrypto. Native in Workers (fast, constant memory) and
- * trivially reproducible from Node for the reset-admin-password script.
+ * PBKDF2-SHA256, using WebCrypto where its iteration limit permits it and
+ * Noble otherwise. Both preserve the same work factor and stored hash format.
  * Format: pbkdf2$<iterations>$<salt b64url>$<hash b64url>
  */
 export async function hashPassword(password: string): Promise<string> {
@@ -26,10 +28,20 @@ export async function verifyPassword(data: { hash: string; password: string }): 
 
 async function derive(password: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', hash: 'SHA-256', salt: salt as BufferSource, iterations },
-    key,
-    KEY_BYTES * 8,
-  );
-  return new Uint8Array(bits);
+  try {
+    const bits = await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', hash: 'SHA-256', salt: salt as BufferSource, iterations },
+      key,
+      KEY_BYTES * 8,
+    );
+    return new Uint8Array(bits);
+  } catch (error) {
+    // Hosted Workers caps native PBKDF2 at 100,000 iterations, unlike local
+    // workerd. Keep existing 200,000-iteration credentials verifiable.
+    if (!(error instanceof Error) || error.name !== 'NotSupportedError') throw error;
+    return pbkdf2Async(sha256, new TextEncoder().encode(password), salt, {
+      c: iterations,
+      dkLen: KEY_BYTES,
+    });
+  }
 }
